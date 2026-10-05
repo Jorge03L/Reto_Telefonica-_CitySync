@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CitySync AI - Cáceres Command</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0b1121; color: #cbd5e1; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .panel { background-color: #111827; border: 1px solid #1f2937; border-radius: 0.75rem; }
+        .leaflet-popup-content-wrapper { background-color: #1f2937; color: #f3f4f6; border: 1px solid #374151;}
+        .leaflet-popup-tip { background-color: #1f2937; }
+        .filter-btn.active { background-color: #2563eb; color: white; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-sm">
+
+    <header class="h-14 border-b border-gray-800 bg-[#0b1121] flex items-center justify-between px-6 shrink-0 z-20">
+        <div class="flex items-center gap-4">
+            <div class="bg-blue-600 text-white p-1.5 rounded-lg"><i class="fas fa-city"></i></div>
+            <h1 class="font-bold text-gray-100 text-base tracking-wide">Cáceres City Command</h1>
+            <span class="bg-green-900/30 text-green-400 border border-green-800 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1.5">
+                <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div> EN VIVO
+            </span>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden p-4 gap-4">
+        
+        <aside class="w-80 flex flex-col gap-3 shrink-0">
+            <div class="flex justify-between items-center mb-1">
+                <h2 class="font-semibold text-gray-200">Incidencias</h2>
+                <span id="alert-counter" class="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30">CARGANDO...</span>
+            </div>
+            
+            <div class="flex gap-2 mb-2 flex-wrap" id="filter-container">
+                <button class="filter-btn active bg-gray-800 text-gray-400 text-xs px-3 py-1 rounded-full transition" data-filter="all">Todas</button>
+                <button class="filter-btn bg-gray-800 text-gray-400 text-xs px-3 py-1 rounded-full transition" data-filter="critical">Críticas</button>
+                <button class="filter-btn bg-gray-800 text-gray-400 text-xs px-3 py-1 rounded-full transition" data-filter="medium">Medias</button>
+                <button class="filter-btn bg-gray-800 text-gray-400 text-xs px-3 py-1 rounded-full transition" data-filter="low">Bajas</button>
+            </div>
+
+            <!-- FIX: Añadido flex-1 min-h-0 para forzar el scroll en Tailwind -->
+            <div id="alerts-list" class="flex-1 overflow-y-auto space-y-3 pb-4 min-h-0">
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col gap-4 min-w-0">
+            <div class="panel flex-1 rounded-xl overflow-hidden shadow-inner relative border border-gray-800" style="z-index: 10;">
+                <div id="map" class="w-full h-full bg-[#111827]"></div>
+                
+                <div class="absolute top-4 left-4 bg-gray-900/80 backdrop-blur border border-gray-700 p-2 rounded-lg z-[400] pointer-events-none">
+                    <h3 class="text-gray-300 font-semibold text-[10px] mb-2 uppercase tracking-wide">Telemetría Global Cáceres</h3>
+                    <div class="text-[10px] text-gray-400 space-y-1">
+                        <div class="flex justify-between gap-4"><span>ESTADO CIUDAD</span> <span class="text-red-400 font-bold">ALTO RIESGO</span></div>
+                        <div class="flex justify-between gap-4"><span>IA ROUTING</span> <span class="text-blue-400">ACTIVO</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-32 flex gap-4 shrink-0">
+                <div class="panel flex-1 p-4 flex items-center relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 text-green-500/10 text-9xl"><i class="fas fa-leaf"></i></div>
+                    <div class="flex items-start gap-4 relative z-10">
+                        <div class="bg-green-500/20 text-green-400 p-4 rounded-full text-2xl"><i class="fas fa-leaf"></i></div>
+                        <div>
+                            <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Impacto Sostenibilidad (Flota)</h3>
+                            <p class="text-3xl font-bold text-gray-100">42.8 <span class="text-lg font-normal text-gray-400">t CO2 evitado</span></p>
+                            <p class="text-[10px] text-green-400 font-semibold mt-1"><i class="fas fa-arrow-down"></i> -24% desplazamientos cruzados gracias a IA</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <aside class="w-80 flex flex-col gap-4 shrink-0">
+            <div class="panel flex-1 flex flex-col">
+                <div class="p-3 border-b border-gray-800">
+                    <h2 class="font-semibold text-gray-200">Motor de Decisión (Java)</h2>
+                    <p class="text-xs text-gray-500">Selecciona una alerta en el panel o mapa.</p>
+                </div>
+                <div class="p-3" id="ai-panel">
+                    <div class="text-center text-gray-500 mt-10">
+                        <i class="fas fa-robot text-4xl mb-3 opacity-50 animate-pulse"></i>
+                        <p class="text-xs">IA procesando la red IoT...</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        // DATOS RE-CATEGORIZADOS SEGÚN URGENCIA
+        const incidents = [
+            { id: 'SENS-HOSP-02', title: 'Caída de Tensión Hospital', locName: 'Hospital San Pedro', type: 'critical', lat: 39.4620, lng: -6.3740, urg: 99, icon: 'fa-hospital', color: 'red', crew: 'Equipo Alpha', tools: 'ELECTRICAL_GEAR', hours: '4h' },
+            { id: 'SENS-LC-01', title: 'Semáforo bloqueando Bus LC', locName: 'Av. Universidad', type: 'critical', lat: 39.4770, lng: -6.3440, urg: 95, icon: 'fa-bus', color: 'red', crew: 'Equipo Alpha', tools: 'ELECTRICAL_GEAR', hours: '1h' },
+            { id: 'SENS-ALDEA-03', title: 'Rotura Tubería Principal', locName: 'Aldea Moret', type: 'critical', lat: 39.4580, lng: -6.3900, urg: 90, icon: 'fa-water', color: 'red', crew: 'Equipo Beta', tools: 'PLUMBING_KIT + HEAVY_MACHINERY', hours: '8h' },
+            { id: 'SENS-EP-05', title: 'Apagón Eléctrico', locName: 'Escuela Politécnica', type: 'critical', lat: 39.4785, lng: -6.3432, urg: 85, icon: 'fa-bolt', color: 'red', crew: 'Equipo Alpha', tools: 'ELECTRICAL_GEAR', hours: '5h' },
+            { id: 'SENS-CAN-09', title: 'Atasco Masivo por Señal', locName: 'Av. de Cánovas', type: 'critical', lat: 39.4720, lng: -6.3750, urg: 70, icon: 'fa-car-crash', color: 'red', crew: 'Equipo Alpha', tools: 'TRAFFIC_CONTROL', hours: '2h' },
+            
+            // Urgencia >= 30 y < 70 (Medias)
+            { id: 'SENS-PARQ-01', title: 'Árbol Caído en Vía', locName: 'Parque del Príncipe', type: 'medium', lat: 39.4750, lng: -6.3790, urg: 60, icon: 'fa-tree', color: 'yellow', crew: 'Equipo Beta', tools: 'HEAVY_MACHINERY', hours: '3h' },
+            { id: 'SENS-BC-12', title: 'Fuga Menor en Baños', locName: 'Biblioteca Central', type: 'medium', lat: 39.4795, lng: -6.3450, urg: 30, icon: 'fa-tint', color: 'yellow', crew: 'Equipo Beta', tools: 'PLUMBING_KIT', hours: '1h' },
+            
+            // Urgencia < 30 (Bajas)
+            { id: 'SENS-PLZ-04', title: 'Contenedor Desbordado', locName: 'Plaza Mayor', type: 'low', lat: 39.4740, lng: -6.3710, urg: 20, icon: 'fa-trash', color: 'blue', crew: 'Equipo Beta', tools: 'HEAVY_MACHINERY', hours: '1h' }
+        ];
+
+        const themeMap = {
+            red: { text: 'text-red-500', border: 'border-l-red-500', hex: '#ef4444' },
+            yellow: { text: 'text-yellow-500', border: 'border-l-yellow-500', hex: '#eab308' },
+            blue: { text: 'text-blue-500', border: 'border-l-blue-500', hex: '#3b82f6' }
+        };
+
+        const map = L.map('map', { zoomControl: false }).setView([39.468, -6.365], 14);
+        
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri',
+            maxZoom: 18,
+            maxNativeZoom: 16
+        }).addTo(map);
+
+        const markers = [];
+
+        function renderAlerts(filter) {
+            const list = document.getElementById('alerts-list');
+            list.innerHTML = '';
+            
+            let count = 0;
+            incidents.forEach(inc => {
+                if (filter === 'all' || inc.type === filter) {
+                    count++;
+                    const theme = themeMap[inc.color];
+                    
+                    const el = document.createElement('div');
+                    el.className = `panel p-3 border-l-2 ${theme.border} hover:bg-gray-800 transition cursor-pointer`;
+                    el.onclick = () => selectIncident(inc);
+                    el.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[9px] ${theme.text} font-bold tracking-wider uppercase">● ${inc.type} (Urg: ${inc.urg})</span>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <div class="bg-gray-800 ${theme.text} p-2 rounded-lg"><i class="fas ${inc.icon}"></i></div>
+                            <div>
+                                <h3 class="text-gray-200 font-semibold text-xs">${inc.title}</h3>
+                                <p class="text-[10px] text-gray-400"><i class="fas fa-map-marker-alt"></i> ${inc.locName}</p>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(el);
+                }
+            });
+            document.getElementById('alert-counter').innerText = `${count} ACTIVAS`;
+        }
+
+        function selectIncident(inc) {
+            map.flyTo([inc.lat, inc.lng], 16, { animate: true, duration: 1 });
+            
+            const timeAgo = Math.floor(Math.random() * 45) + 5; // Simula entre 5 y 50 minutos
+            
+            const panel = document.getElementById('ai-panel');
+            panel.innerHTML = `
+                <div class="bg-blue-900/30 border border-blue-800/50 rounded-lg p-3 relative overflow-hidden animate-fade-in">
+                    <div class="absolute top-0 right-0 bg-blue-600 text-[9px] px-2 py-0.5 rounded-bl-lg font-bold text-white">98% IA MATCH</div>
+                    <h3 class="text-blue-400 text-[10px] font-bold tracking-wider mb-2"><i class="fas fa-microchip mr-1"></i> DETALLES DE LA INCIDENCIA</h3>
+                    
+                    <div class="space-y-2 mb-3 bg-black/20 p-2 rounded border border-gray-700/50">
+                        <div class="flex justify-between border-b border-gray-700/50 pb-1">
+                            <span class="text-gray-400 text-[10px]">📍 Localización Exacta</span>
+                            <span class="text-gray-200 text-[10px] font-mono">${inc.lat.toFixed(4)}, ${inc.lng.toFixed(4)}</span>
+                        </div>
+                        <div class="flex justify-between border-b border-gray-700/50 pb-1">
+                            <span class="text-gray-400 text-[10px]">📡 Sensor(es) Inv.</span>
+                            <span class="text-gray-200 text-[10px] font-mono">${inc.id} (Red Primaria)</span>
+                        </div>
+                        <div class="flex justify-between border-b border-gray-700/50 pb-1">
+                            <span class="text-gray-400 text-[10px]">⏱️ Primera Detección</span>
+                            <span class="text-red-400 text-[10px]">Hace ${timeAgo} minutos</span>
+                        </div>
+                        <div class="flex justify-between pb-1">
+                            <span class="text-gray-400 text-[10px]">🛠️ Nivel Intervención</span>
+                            <span class="text-gray-200 text-[10px] uppercase font-bold">${inc.type}</span>
+                        </div>
+                    </div>
+
+                    <p class="text-gray-300 text-[11px] mb-3 leading-relaxed">
+                        Recomendación IA: Enviar a <span class="font-bold text-white">${inc.crew}</span>. 
+                        Match de herramienta: <span class="text-blue-300">${inc.tools}</span>.
+                    </p>
+                    
+                    <div class="grid grid-cols-2 gap-2 mb-4 bg-black/30 p-2 rounded">
+                        <div class="text-center">
+                            <i class="fas fa-clock text-gray-400 mb-1"></i>
+                            <p class="text-[10px] font-bold">Reserva de Horas</p>
+                            <p class="text-[9px] text-green-400">Requiere ${inc.hours} ✓</p>
+                        </div>
+                        <div class="text-center border-l border-gray-700/50">
+                            <i class="fas fa-route text-gray-400 mb-1"></i>
+                            <p class="text-[10px] font-bold">Ruta Optimizada</p>
+                            <p class="text-[9px] text-green-400">Menor huella CO2</p>
+                        </div>
+                    </div>
+                    <button class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded shadow transition flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-check"></i> Aprobar Plan IA
+                    </button>
+                </div>
+            `;
+        }
+
+        incidents.forEach(inc => {
+            const theme = themeMap[inc.color];
+            const htmlIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color: ${theme.hex}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${theme.hex};"></div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+            
+            const marker = L.marker([inc.lat, inc.lng], {icon: htmlIcon}).addTo(map);
+            marker.bindPopup(`<b class="text-gray-800">${inc.title}</b><br/><span class="text-gray-600">${inc.locName}</span>`);
+            marker.on('click', () => selectIncident(inc));
+            markers.push(marker);
+        });
+
+        // Configuración de botones de filtro
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-blue-600', 'text-white');
+                    b.classList.add('bg-gray-800', 'text-gray-400');
+                });
+                const target = e.target;
+                target.classList.add('active', 'bg-blue-600', 'text-white');
+                target.classList.remove('bg-gray-800', 'text-gray-400');
+                renderAlerts(target.dataset.filter);
+            });
+        });
+
+        // Render inicial
+        renderAlerts('all');
+    </script>
+</body>
+</html>
